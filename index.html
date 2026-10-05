@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>副业内容矩阵与迁移管理</title>
+    <title>副业内容矩阵与工具流管理</title>
     <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <!-- 引入 Alpine.js 处理简单交互 -->
@@ -14,13 +14,16 @@
     <!-- 顶部导航 -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div class="max-w-md mx-auto px-4 py-3 flex justify-between items-center">
-            <h1 class="font-bold text-lg text-slate-900">🚀 副业内容流</h1>
-            <div class="flex items-center gap-2">
+            <h1 class="font-bold text-lg text-slate-900">🚀 副业内容与工具流</h1>
+            <div class="flex items-center gap-1.5">
                 <!-- 平台管理按钮 -->
                 <button @click="showPlatformModal = true" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded-lg font-medium transition">
-                    ⚙️ 管理平台
+                    ⚙️ 平台
                 </button>
-                <span class="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded-full font-medium">MVP 2.0</span>
+                <!-- 工具管理按钮 -->
+                <button @click="showToolModal = true" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded-lg font-medium transition">
+                    🛠️️ 工具箱
+                </button>
             </div>
         </div>
     </header>
@@ -97,7 +100,16 @@
                         </template>
                     </div>
 
-                    <!-- 底部关键指标与日期：创建日期、发布日期、流量 -->
+                    <!-- 使用的工具标签展示 -->
+                    <template x-if="item.tools && item.tools.length > 0">
+                        <div class="flex flex-wrap gap-1 pt-1">
+                            <template x-for="t in item.tools">
+                                <span class="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md border border-indigo-100" x-text="'🛠️ ' + t"></span>
+                            </template>
+                        </div>
+                    </template>
+
+                    <!-- 底部关键指标与日期 -->
                     <div class="grid grid-cols-3 gap-1 pt-2 border-t border-slate-100 text-[11px] text-slate-500">
                         <div>
                             <span class="text-slate-400 block text-[10px]">创建</span>
@@ -121,7 +133,7 @@
     <div x-show="showPlatformModal" class="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-30 p-4" x-cloak>
         <div class="bg-white w-full max-w-sm rounded-2xl p-5 space-y-4 shadow-xl">
             <div class="flex justify-between items-center">
-                <h3 class="font-bold text-base">自定义管理平台</h3>
+                <h3 class="font-bold text-base">自定义管理发布平台</h3>
                 <button @click="showPlatformModal = false" class="text-slate-400 text-sm">关闭</button>
             </div>
             <div class="flex gap-2">
@@ -139,7 +151,30 @@
         </div>
     </div>
 
-    <!-- 弹窗2：新增/编辑内容表单 -->
+    <!-- 弹窗2：工具箱管理弹窗 -->
+    <div x-show="showToolModal" class="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-30 p-4" x-cloak>
+        <div class="bg-white w-full max-w-sm rounded-2xl p-5 space-y-4 shadow-xl">
+            <div class="flex justify-between items-center">
+                <h3 class="font-bold text-base">自定义生产力工具箱</h3>
+                <button @click="showToolModal = false" class="text-slate-400 text-sm">关闭</button>
+            </div>
+            <p class="text-xs text-slate-400">管理你已有或正在打造的自动化工具，方便在内容创作时进行关联标记。</p>
+            <div class="flex gap-2">
+                <input type="text" x-model="newToolName" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="例如：文字生成图片...">
+                <button @click="addTool()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-medium">添加</button>
+            </div>
+            <div class="space-y-1.5 max-h-60 overflow-y-auto">
+                <template x-for="(t, index) in tools" :key="t">
+                    <div class="flex justify-between items-center bg-slate-50 px-3 py-2 rounded-xl border border-slate-100 text-sm">
+                        <span x-text="'🛠️ ' + t"></span>
+                        <button @click="removeTool(index)" class="text-slate-400 hover:text-rose-500 text-xs">删除</button>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <!-- 弹窗3：新增/编辑内容表单 -->
     <div x-show="showModal" class="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-end z-20" x-cloak>
         <div class="bg-white w-full rounded-t-3xl p-5 space-y-4 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center">
@@ -161,6 +196,19 @@
                             <label class="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
                                 <input type="checkbox" :value="p" x-model="form.platforms" class="rounded text-indigo-600 focus:ring-indigo-500">
                                 <span x-text="p"></span>
+                            </label>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- 生产力工具多选 -->
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">使用/打造的工具 (可多选)</label>
+                    <div class="grid grid-cols-2 gap-2 bg-indigo-50/40 p-2.5 rounded-xl border border-indigo-100">
+                        <template x-for="t in tools">
+                            <label class="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
+                                <input type="checkbox" :value="t" x-model="form.tools" class="rounded text-indigo-600 focus:ring-indigo-500">
+                                <span x-text="t"></span>
                             </label>
                         </template>
                     </div>
@@ -242,15 +290,19 @@
             return {
                 showModal: false,
                 showPlatformModal: false,
+                showToolModal: false,
                 isEditing: false,
                 editId: null,
                 filterStatus: '全部',
                 newPlatformName: '',
+                newToolName: '',
                 platforms: JSON.parse(localStorage.getItem('content_platforms') || '["小红书", "YouTube", "即刻", "Twitter/X", "视频号", "公众号"]'),
-                items: JSON.parse(localStorage.getItem('content_items_v2') || '[]'),
+                tools: JSON.parse(localStorage.getItem('content_tools') || '["视频提取音频", "文字生成图片", "音频转文字", "文字转音频"]'),
+                items: JSON.parse(localStorage.getItem('content_items_v3') || '[]'),
                 form: {
                     title: '',
                     platforms: ['小红书'],
+                    tools: [],
                     form: '图文',
                     status: '想法',
                     sourceType: '原创',
@@ -277,12 +329,26 @@
                         localStorage.setItem('content_platforms', JSON.stringify(this.platforms));
                     }
                 },
+                addTool() {
+                    if (this.newToolName.trim() && !this.tools.includes(this.newToolName.trim())) {
+                        this.tools.push(this.newToolName.trim());
+                        this.newToolName = '';
+                        localStorage.setItem('content_tools', JSON.stringify(this.tools));
+                    }
+                },
+                removeTool(index) {
+                    if (confirm('确定删除该工具吗？')) {
+                        this.tools.splice(index, 1);
+                        localStorage.setItem('content_tools', JSON.stringify(this.tools));
+                    }
+                },
                 openModal() {
                     this.isEditing = false;
                     this.editId = null;
                     this.form = {
                         title: '',
                         platforms: [this.platforms[0] || '小红书'],
+                        tools: [],
                         form: '图文',
                         status: '想法',
                         sourceType: '原创',
@@ -300,6 +366,7 @@
                     this.form = {
                         title: item.title,
                         platforms: item.platforms || [item.platform || '小红书'],
+                        tools: item.tools || [],
                         form: item.form,
                         status: item.status,
                         sourceType: item.sourceType,
@@ -341,7 +408,7 @@
                     }
                 },
                 syncStorage() {
-                    localStorage.setItem('content_items_v2', JSON.stringify(this.items));
+                    localStorage.setItem('content_items_v3', JSON.stringify(this.items));
                 }
             }
         }
