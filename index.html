@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>副业内容矩阵与迁移管理</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- 引入 Alpine.js 处理简单交互 -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen pb-12" x-data="contentApp()">
+
+    <!-- 顶部导航 -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-10">
+        <div class="max-w-md mx-auto px-4 py-3 flex justify-between items-center">
+            <h1 class="font-bold text-lg text-slate-900">🚀 副业内容流</h1>
+            <span class="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded-full font-medium">Phase 1 MVP</span>
+        </div>
+    </header>
+
+    <!-- 主体容器 -->
+    <main class="max-w-md mx-auto px-4 mt-4 space-y-4">
+
+        <!-- 快捷操作区 -->
+        <div class="flex gap-2">
+            <button @click="openModal()" class="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl font-medium text-sm shadow-sm active:scale-98 transition">
+                + 新增内容资产
+            </button>
+        </div>
+
+        <!-- 数据概览小卡片 -->
+        <div class="grid grid-cols-3 gap-2">
+            <div class="bg-white p-3 rounded-xl border border-slate-200 text-center">
+                <div class="text-xs text-slate-400">总内容</div>
+                <div class="text-lg font-bold text-slate-800" x-text="items.length">0</div>
+            </div>
+            <div class="bg-white p-3 rounded-xl border border-slate-200 text-center">
+                <div class="text-xs text-slate-400">已发布</div>
+                <div class="text-lg font-bold text-emerald-600" x-text="items.filter(i => i.status === '已发布').length">0</div>
+            </div>
+            <div class="bg-white p-3 rounded-xl border border-slate-200 text-center">
+                <div class="text-xs text-slate-400">制作中</div>
+                <div class="text-lg font-bold text-amber-600" x-text="items.filter(i => i.status === '制作中').length">0</div>
+            </div>
+        </div>
+
+        <!-- 内容库列表 -->
+        <div class="space-y-3">
+            <h2 class="font-semibold text-sm text-slate-600 px-1">内容资产台账</h2>
+            
+            <template x-if="items.length === 0">
+                <div class="bg-white rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-400 text-sm">
+                    暂无内容，点击上方按钮开始添加第一个选题吧！
+                </div>
+            </template>
+
+            <template x-for="item in items" :key="item.id">
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+                    <div class="flex justify-between items-start">
+                        <span class="text-xs px-2 py-0.5 rounded-md font-medium"
+                            :class="{
+                                'bg-emerald-50 text-emerald-700': item.status === '已发布',
+                                'bg-amber-50 text-amber-700': item.status === '制作中',
+                                'bg-slate-100 text-slate-600': item.status === '想法'
+                            }" x-text="item.status"></span>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-slate-400" x-text="item.platform"></span>
+                            <button @click="deleteItem(item.id)" class="text-slate-300 hover:text-rose-500 text-xs">✕</button>
+                        </div>
+                    </div>
+                    
+                    <h3 class="font-medium text-slate-900 text-sm" x-text="item.title"></h3>
+
+                    <div class="flex justify-between items-center text-xs text-slate-400 pt-1 border-t border-slate-100">
+                        <span class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600" x-text="item.form"></span>
+                        <span class="text-indigo-600 font-medium" x-text="'来源: ' + item.sourceType"></span>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </main>
+
+    <!-- 底部弹窗：新增表单 -->
+    <div x-show="showModal" class="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-end z-20" x-cloak>
+        <div class="bg-white w-full rounded-t-3xl p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center">
+                <h3 class="font-bold text-base">新增内容资产</h3>
+                <button @click="closeModal()" class="text-slate-400 text-sm">取消</button>
+            </div>
+
+            <form @submit.prevent="saveItem" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">标题/主题</label>
+                    <input type="text" x-model="form.title" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-indigo-600" placeholder="例如：独立开发者的副业复盘">
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">当前平台</label>
+                        <select x-model="form.platform" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                            <option>小红书</option>
+                            <option>YouTube</option>
+                            <option>即刻</option>
+                            <option>Twitter / X</option>
+                            <option>微信视频号</option>
+                            <option>公众号</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">内容形式</label>
+                        <select x-model="form.form" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                            <option>图文</option>
+                            <option>短视频</option>
+                            <option>长视频</option>
+                            <option>纯文字</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">状态</label>
+                        <select x-model="form.status" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                            <option>想法</option>
+                            <option>制作中</option>
+                            <option>已发布</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">来源类型</label>
+                        <select x-model="form.sourceType" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                            <option>原创</option>
+                            <option>跨平台改编</option>
+                            <option>他人参考/改写</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">链接 (选填)</label>
+                    <input type="url" x-model="form.link" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="https://...">
+                </div>
+
+                <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-medium text-sm shadow-sm mt-2">保存到内容库</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 逻辑脚本 -->
+    <script>
+        function contentApp() {
+            return {
+                showModal: false,
+                items: JSON.parse(localStorage.getItem('content_items') || '[]'),
+                form: {
+                    title: '',
+                    platform: '小红书',
+                    form: '图文',
+                    status: '想法',
+                    sourceType: '原创',
+                    link: ''
+                },
+                openModal() {
+                    this.showModal = true;
+                },
+                closeModal() {
+                    this.showModal = false;
+                    this.form = { title: '', platform: '小红书', form: '图文', status: '想法', sourceType: '原创', link: '' };
+                },
+                saveItem() {
+                    const newItem = {
+                        id: Date.now(),
+                        ...this.form
+                    };
+                    this.items.unshift(newItem);
+                    this.syncStorage();
+                    this.closeModal();
+                },
+                deleteItem(id) {
+                    if(confirm('确定删除这条内容吗？')) {
+                        this.items = this.items.filter(i => i.id !== id);
+                        this.syncStorage();
+                    }
+                },
+                syncStorage() {
+                    localStorage.setItem('content_items', JSON.stringify(this.items));
+                }
+            }
+        }
+    </script>
+</body>
+</html>
