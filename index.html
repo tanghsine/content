@@ -15,7 +15,13 @@
     <header class="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div class="max-w-md mx-auto px-4 py-3 flex justify-between items-center">
             <h1 class="font-bold text-lg text-slate-900">🚀 副业内容流</h1>
-            <span class="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded-full font-medium">Phase 1.5 MVP</span>
+            <div class="flex items-center gap-2">
+                <!-- 平台管理按钮 -->
+                <button @click="showPlatformModal = true" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded-lg font-medium transition">
+                    ⚙️ 管理平台
+                </button>
+                <span class="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded-full font-medium">MVP 2.0</span>
+            </div>
         </div>
     </header>
 
@@ -77,9 +83,7 @@
                             }" x-text="item.status"></span>
                         
                         <div class="flex items-center gap-1.5">
-                            <!-- 编辑按钮 -->
                             <button @click="editItem(item)" class="text-slate-400 hover:text-indigo-600 text-xs px-2 py-0.5 bg-slate-50 rounded border border-slate-200">编辑</button>
-                            <!-- 删除按钮 -->
                             <button @click="deleteItem(item.id)" class="text-slate-300 hover:text-rose-500 text-xs px-1.5 py-0.5">✕</button>
                         </div>
                     </div>
@@ -113,7 +117,29 @@
         </div>
     </main>
 
-    <!-- 底部弹窗：新增/编辑表单 -->
+    <!-- 弹窗1：平台管理弹窗 -->
+    <div x-show="showPlatformModal" class="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-30 p-4" x-cloak>
+        <div class="bg-white w-full max-w-sm rounded-2xl p-5 space-y-4 shadow-xl">
+            <div class="flex justify-between items-center">
+                <h3 class="font-bold text-base">自定义管理平台</h3>
+                <button @click="showPlatformModal = false" class="text-slate-400 text-sm">关闭</button>
+            </div>
+            <div class="flex gap-2">
+                <input type="text" x-model="newPlatformName" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="输入新平台名称...">
+                <button @click="addPlatform()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-medium">添加</button>
+            </div>
+            <div class="space-y-1.5 max-h-60 overflow-y-auto">
+                <template x-for="(p, index) in platforms" :key="p">
+                    <div class="flex justify-between items-center bg-slate-50 px-3 py-2 rounded-xl border border-slate-100 text-sm">
+                        <span x-text="p"></span>
+                        <button @click="removePlatform(index)" class="text-slate-400 hover:text-rose-500 text-xs">删除</button>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <!-- 弹窗2：新增/编辑内容表单 -->
     <div x-show="showModal" class="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-end z-20" x-cloak>
         <div class="bg-white w-full rounded-t-3xl p-5 space-y-4 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center">
@@ -131,7 +157,7 @@
                 <div>
                     <label class="block text-xs font-medium text-slate-600 mb-1">目标平台 (可多选)</label>
                     <div class="grid grid-cols-3 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-                        <template x-for="p in availablePlatforms">
+                        <template x-for="p in platforms">
                             <label class="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
                                 <input type="checkbox" :value="p" x-model="form.platforms" class="rounded text-indigo-600 focus:ring-indigo-500">
                                 <span x-text="p"></span>
@@ -174,7 +200,7 @@
                     <div class="space-y-2 bg-amber-50/50 p-3 rounded-xl border border-amber-200">
                         <label class="block text-xs font-medium text-amber-800">参考平台 (可多选)</label>
                         <div class="grid grid-cols-3 gap-2">
-                            <template x-for="p in availablePlatforms">
+                            <template x-for="p in platforms">
                                 <label class="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
                                     <input type="checkbox" :value="p" x-model="form.refPlatforms" class="rounded text-amber-600">
                                     <span x-text="p"></span>
@@ -215,10 +241,12 @@
         function contentApp() {
             return {
                 showModal: false,
+                showPlatformModal: false,
                 isEditing: false,
                 editId: null,
                 filterStatus: '全部',
-                availablePlatforms: ['小红书', 'YouTube', '即刻', 'Twitter/X', '视频号', '公众号'],
+                newPlatformName: '',
+                platforms: JSON.parse(localStorage.getItem('content_platforms') || '["小红书", "YouTube", "即刻", "Twitter/X", "视频号", "公众号"]'),
                 items: JSON.parse(localStorage.getItem('content_items_v2') || '[]'),
                 form: {
                     title: '',
@@ -236,12 +264,25 @@
                     if (this.filterStatus === '全部') return this.items;
                     return this.items.filter(i => i.status === this.filterStatus);
                 },
+                addPlatform() {
+                    if (this.newPlatformName.trim() && !this.platforms.includes(this.newPlatformName.trim())) {
+                        this.platforms.push(this.newPlatformName.trim());
+                        this.newPlatformName = '';
+                        localStorage.setItem('content_platforms', JSON.stringify(this.platforms));
+                    }
+                },
+                removePlatform(index) {
+                    if (confirm('确定删除该平台吗？')) {
+                        this.platforms.splice(index, 1);
+                        localStorage.setItem('content_platforms', JSON.stringify(this.platforms));
+                    }
+                },
                 openModal() {
                     this.isEditing = false;
                     this.editId = null;
                     this.form = {
                         title: '',
-                        platforms: ['小红书'],
+                        platforms: [this.platforms[0] || '小红书'],
                         form: '图文',
                         status: '想法',
                         sourceType: '原创',
@@ -256,7 +297,6 @@
                 editItem(item) {
                     this.isEditing = true;
                     this.editId = item.id;
-                    // 兼容老数据没有platforms的情况
                     this.form = {
                         title: item.title,
                         platforms: item.platforms || [item.platform || '小红书'],
@@ -277,7 +317,6 @@
                 saveItem() {
                     const today = new Date().toISOString().split('T')[0];
                     if (this.isEditing) {
-                        // 更新
                         this.items = this.items.map(i => {
                             if (i.id === this.editId) {
                                 return { ...i, ...this.form };
@@ -285,7 +324,6 @@
                             return i;
                         });
                     } else {
-                        // 新增
                         const newItem = {
                             id: Date.now(),
                             createdAt: today,
