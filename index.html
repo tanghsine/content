@@ -15,7 +15,7 @@
     <header class="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div class="max-w-md mx-auto px-4 py-3 flex justify-between items-center">
             <h1 class="font-bold text-lg text-slate-900">🚀 副业内容流</h1>
-            <span class="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded-full font-medium">Phase 1 MVP</span>
+            <span class="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded-full font-medium">Phase 1.5 MVP</span>
         </div>
     </header>
 
@@ -29,34 +29,45 @@
             </button>
         </div>
 
-        <!-- 数据概览小卡片 -->
-        <div class="grid grid-cols-3 gap-2">
-            <div class="bg-white p-3 rounded-xl border border-slate-200 text-center">
-                <div class="text-xs text-slate-400">总内容</div>
-                <div class="text-lg font-bold text-slate-800" x-text="items.length">0</div>
+        <!-- 数据概览小卡片 (点击可进行状态筛选) -->
+        <div class="grid grid-cols-4 gap-2">
+            <div @click="filterStatus = '全部'" class="bg-white p-2.5 rounded-xl border text-center cursor-pointer transition"
+                :class="filterStatus === '全部' ? 'border-indigo-600 ring-1 ring-indigo-600 bg-indigo-50/30' : 'border-slate-200'">
+                <div class="text-[10px] text-slate-400">全部</div>
+                <div class="text-base font-bold text-slate-800" x-text="items.length">0</div>
             </div>
-            <div class="bg-white p-3 rounded-xl border border-slate-200 text-center">
-                <div class="text-xs text-slate-400">已发布</div>
-                <div class="text-lg font-bold text-emerald-600" x-text="items.filter(i => i.status === '已发布').length">0</div>
+            <div @click="filterStatus = '已发布'" class="bg-white p-2.5 rounded-xl border text-center cursor-pointer transition"
+                :class="filterStatus === '已发布' ? 'border-emerald-600 ring-1 ring-emerald-600 bg-emerald-50/30' : 'border-slate-200'">
+                <div class="text-[10px] text-slate-400">已发布</div>
+                <div class="text-base font-bold text-emerald-600" x-text="items.filter(i => i.status === '已发布').length">0</div>
             </div>
-            <div class="bg-white p-3 rounded-xl border border-slate-200 text-center">
-                <div class="text-xs text-slate-400">制作中</div>
-                <div class="text-lg font-bold text-amber-600" x-text="items.filter(i => i.status === '制作中').length">0</div>
+            <div @click="filterStatus = '制作中'" class="bg-white p-2.5 rounded-xl border text-center cursor-pointer transition"
+                :class="filterStatus === '制作中' ? 'border-amber-600 ring-1 ring-amber-600 bg-amber-50/30' : 'border-slate-200'">
+                <div class="text-[10px] text-slate-400">制作中</div>
+                <div class="text-base font-bold text-amber-600" x-text="items.filter(i => i.status === '制作中').length">0</div>
+            </div>
+            <div @click="filterStatus = '想法'" class="bg-white p-2.5 rounded-xl border text-center cursor-pointer transition"
+                :class="filterStatus === '想法' ? 'border-slate-600 ring-1 ring-slate-600 bg-slate-100/50' : 'border-slate-200'">
+                <div class="text-[10px] text-slate-400">想法</div>
+                <div class="text-base font-bold text-slate-600" x-text="items.filter(i => i.status === '想法').length">0</div>
             </div>
         </div>
 
         <!-- 内容库列表 -->
         <div class="space-y-3">
-            <h2 class="font-semibold text-sm text-slate-600 px-1">内容资产台账</h2>
+            <div class="flex justify-between items-center px-1">
+                <h2 class="font-semibold text-sm text-slate-600">内容资产台账</h2>
+                <span class="text-xs text-slate-400" x-text="'当前筛选: ' + filterStatus"></span>
+            </div>
             
-            <template x-if="items.length === 0">
+            <template x-if="filteredItems.length === 0">
                 <div class="bg-white rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-400 text-sm">
-                    暂无内容，点击上方按钮开始添加第一个选题吧！
+                    没有找到符合条件的内容资产
                 </div>
             </template>
 
-            <template x-for="item in items" :key="item.id">
-                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+            <template x-for="item in filteredItems" :key="item.id">
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-2.5">
                     <div class="flex justify-between items-start">
                         <span class="text-xs px-2 py-0.5 rounded-md font-medium"
                             :class="{
@@ -64,28 +75,49 @@
                                 'bg-amber-50 text-amber-700': item.status === '制作中',
                                 'bg-slate-100 text-slate-600': item.status === '想法'
                             }" x-text="item.status"></span>
-                        <div class="flex items-center gap-2">
-                            <span class="text-xs text-slate-400" x-text="item.platform"></span>
-                            <button @click="deleteItem(item.id)" class="text-slate-300 hover:text-rose-500 text-xs">✕</button>
+                        
+                        <div class="flex items-center gap-1.5">
+                            <!-- 编辑按钮 -->
+                            <button @click="editItem(item)" class="text-slate-400 hover:text-indigo-600 text-xs px-2 py-0.5 bg-slate-50 rounded border border-slate-200">编辑</button>
+                            <!-- 删除按钮 -->
+                            <button @click="deleteItem(item.id)" class="text-slate-300 hover:text-rose-500 text-xs px-1.5 py-0.5">✕</button>
                         </div>
                     </div>
                     
                     <h3 class="font-medium text-slate-900 text-sm" x-text="item.title"></h3>
 
-                    <div class="flex justify-between items-center text-xs text-slate-400 pt-1 border-t border-slate-100">
-                        <span class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600" x-text="item.form"></span>
-                        <span class="text-indigo-600 font-medium" x-text="'来源: ' + item.sourceType"></span>
+                    <!-- 目标平台标签展示 -->
+                    <div class="flex flex-wrap gap-1">
+                        <template x-for="plat in item.platforms">
+                            <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full" x-text="plat"></span>
+                        </template>
+                    </div>
+
+                    <!-- 底部关键指标与日期：创建日期、发布日期、流量 -->
+                    <div class="grid grid-cols-3 gap-1 pt-2 border-t border-slate-100 text-[11px] text-slate-500">
+                        <div>
+                            <span class="text-slate-400 block text-[10px]">创建</span>
+                            <span x-text="item.createdAt || '-'"></span>
+                        </div>
+                        <div>
+                            <span class="text-slate-400 block text-[10px]">发布</span>
+                            <span x-text="item.publishDate || '未发布'"></span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-slate-400 block text-[10px]">当前流量</span>
+                            <span class="font-semibold text-indigo-600" x-text="item.traffic || '0'"></span>
+                        </div>
                     </div>
                 </div>
             </template>
         </div>
     </main>
 
-    <!-- 底部弹窗：新增表单 -->
+    <!-- 底部弹窗：新增/编辑表单 -->
     <div x-show="showModal" class="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-end z-20" x-cloak>
         <div class="bg-white w-full rounded-t-3xl p-5 space-y-4 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center">
-                <h3 class="font-bold text-base">新增内容资产</h3>
+                <h3 class="font-bold text-base" x-text="isEditing ? '编辑内容资产' : '新增内容资产'"></h3>
                 <button @click="closeModal()" class="text-slate-400 text-sm">取消</button>
             </div>
 
@@ -95,18 +127,20 @@
                     <input type="text" x-model="form.title" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-indigo-600" placeholder="例如：独立开发者的副业复盘">
                 </div>
 
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="block text-xs font-medium text-slate-600 mb-1">当前平台</label>
-                        <select x-model="form.platform" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm">
-                            <option>小红书</option>
-                            <option>YouTube</option>
-                            <option>即刻</option>
-                            <option>Twitter / X</option>
-                            <option>微信视频号</option>
-                            <option>公众号</option>
-                        </select>
+                <!-- 目标平台多选 -->
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">目标平台 (可多选)</label>
+                    <div class="grid grid-cols-3 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                        <template x-for="p in availablePlatforms">
+                            <label class="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
+                                <input type="checkbox" :value="p" x-model="form.platforms" class="rounded text-indigo-600 focus:ring-indigo-500">
+                                <span x-text="p"></span>
+                            </label>
+                        </template>
                     </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
                     <div>
                         <label class="block text-xs font-medium text-slate-600 mb-1">内容形式</label>
                         <select x-model="form.form" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm">
@@ -116,9 +150,6 @@
                             <option>纯文字</option>
                         </select>
                     </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-2">
                     <div>
                         <label class="block text-xs font-medium text-slate-600 mb-1">状态</label>
                         <select x-model="form.status" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm">
@@ -127,22 +158,54 @@
                             <option>已发布</option>
                         </select>
                     </div>
+                </div>
+
+                <!-- 来源类型与参考源多选 -->
+                <div class="space-y-2">
+                    <label class="block text-xs font-medium text-slate-600">来源类型</label>
+                    <select x-model="form.sourceType" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                        <option>原创</option>
+                        <option>跨平台改编</option>
+                        <option>他人参考/改写</option>
+                    </select>
+                </div>
+
+                <template x-if="form.sourceType === '他人参考/改写'">
+                    <div class="space-y-2 bg-amber-50/50 p-3 rounded-xl border border-amber-200">
+                        <label class="block text-xs font-medium text-amber-800">参考平台 (可多选)</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <template x-for="p in availablePlatforms">
+                                <label class="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
+                                    <input type="checkbox" :value="p" x-model="form.refPlatforms" class="rounded text-amber-600">
+                                    <span x-text="p"></span>
+                                </label>
+                            </template>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-amber-800 mt-2 mb-1">参考来源链接/出处说明</label>
+                            <input type="text" x-model="form.refNote" class="w-full bg-white border border-amber-200 rounded-xl px-3 py-2 text-sm" placeholder="例如：某博主爆款选题 / 原文链接">
+                        </div>
+                    </div>
+                </template>
+
+                <!-- 日期与流量追踪 -->
+                <div class="grid grid-cols-2 gap-2">
                     <div>
-                        <label class="block text-xs font-medium text-slate-600 mb-1">来源类型</label>
-                        <select x-model="form.sourceType" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm">
-                            <option>原创</option>
-                            <option>跨平台改编</option>
-                            <option>他人参考/改写</option>
-                        </select>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">发布日期</label>
+                        <input type="date" x-model="form.publishDate" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">当前流量/阅读量</label>
+                        <input type="text" x-model="form.traffic" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="例如：1.2w">
                     </div>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-medium text-slate-600 mb-1">链接 (选填)</label>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">内容访问链接 (选填)</label>
                     <input type="url" x-model="form.link" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="https://...">
                 </div>
 
-                <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-medium text-sm shadow-sm mt-2">保存到内容库</button>
+                <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-medium text-sm shadow-sm mt-2" x-text="isEditing ? '确认修改' : '保存到内容库'"></button>
             </form>
         </div>
     </div>
@@ -152,28 +215,84 @@
         function contentApp() {
             return {
                 showModal: false,
-                items: JSON.parse(localStorage.getItem('content_items') || '[]'),
+                isEditing: false,
+                editId: null,
+                filterStatus: '全部',
+                availablePlatforms: ['小红书', 'YouTube', '即刻', 'Twitter/X', '视频号', '公众号'],
+                items: JSON.parse(localStorage.getItem('content_items_v2') || '[]'),
                 form: {
                     title: '',
-                    platform: '小红书',
+                    platforms: ['小红书'],
                     form: '图文',
                     status: '想法',
                     sourceType: '原创',
+                    refPlatforms: [],
+                    refNote: '',
+                    publishDate: '',
+                    traffic: '',
                     link: ''
                 },
+                get filteredItems() {
+                    if (this.filterStatus === '全部') return this.items;
+                    return this.items.filter(i => i.status === this.filterStatus);
+                },
                 openModal() {
+                    this.isEditing = false;
+                    this.editId = null;
+                    this.form = {
+                        title: '',
+                        platforms: ['小红书'],
+                        form: '图文',
+                        status: '想法',
+                        sourceType: '原创',
+                        refPlatforms: [],
+                        refNote: '',
+                        publishDate: '',
+                        traffic: '',
+                        link: ''
+                    };
+                    this.showModal = true;
+                },
+                editItem(item) {
+                    this.isEditing = true;
+                    this.editId = item.id;
+                    // 兼容老数据没有platforms的情况
+                    this.form = {
+                        title: item.title,
+                        platforms: item.platforms || [item.platform || '小红书'],
+                        form: item.form,
+                        status: item.status,
+                        sourceType: item.sourceType,
+                        refPlatforms: item.refPlatforms || [],
+                        refNote: item.refNote || '',
+                        publishDate: item.publishDate || '',
+                        traffic: item.traffic || '',
+                        link: item.link || ''
+                    };
                     this.showModal = true;
                 },
                 closeModal() {
                     this.showModal = false;
-                    this.form = { title: '', platform: '小红书', form: '图文', status: '想法', sourceType: '原创', link: '' };
                 },
                 saveItem() {
-                    const newItem = {
-                        id: Date.now(),
-                        ...this.form
-                    };
-                    this.items.unshift(newItem);
+                    const today = new Date().toISOString().split('T')[0];
+                    if (this.isEditing) {
+                        // 更新
+                        this.items = this.items.map(i => {
+                            if (i.id === this.editId) {
+                                return { ...i, ...this.form };
+                            }
+                            return i;
+                        });
+                    } else {
+                        // 新增
+                        const newItem = {
+                            id: Date.now(),
+                            createdAt: today,
+                            ...this.form
+                        };
+                        this.items.unshift(newItem);
+                    }
                     this.syncStorage();
                     this.closeModal();
                 },
@@ -184,7 +303,7 @@
                     }
                 },
                 syncStorage() {
-                    localStorage.setItem('content_items', JSON.stringify(this.items));
+                    localStorage.setItem('content_items_v2', JSON.stringify(this.items));
                 }
             }
         }
