@@ -40,6 +40,36 @@
       <div class="text-[10px] text-slate-400">想法</div><div class="text-base font-bold text-slate-600" x-text="items.filter(i => i.status === '想法').length">0</div></div>
   </div>
 
+  <!-- 平台经验总结 -->
+  <div class="bg-white rounded-2xl border border-slate-200 p-4 space-y-2.5">
+    <div class="flex justify-between items-center">
+      <h2 class="font-semibold text-sm text-slate-700">📝 平台经验总结</h2>
+      <button @click="openLearningModal()" class="text-xs text-indigo-600 font-medium">+ 记录一条</button>
+    </div>
+    <template x-if="learnings.length === 0">
+      <div class="text-xs text-slate-400 text-center py-3 border border-dashed border-slate-200 rounded-xl">比如：抖音某类内容容易被限流……踩过的坑、悟到的经验都记在这里</div>
+    </template>
+    <div class="space-y-2 max-h-80 overflow-y-auto">
+      <template x-for="l in learnings" :key="l.id">
+        <div class="bg-slate-50 border border-slate-100 rounded-xl px-3 py-2.5 space-y-1">
+          <div class="flex justify-between items-center">
+            <div class="flex items-center gap-1.5">
+              <span class="text-[10px] font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1" :style="'background:' + platBrand(l.platform).bg + ';color:' + platBrand(l.platform).fg"><span x-text="platBrand(l.platform).icon"></span><span x-text="l.platform || '通用'"></span></span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded font-medium" :class="learningKindClass(l.kind)" x-text="l.kind"></span>
+            </div>
+            <div class="flex gap-2.5">
+              <button @click="editLearning(l)" class="text-indigo-500 text-[11px]">编辑</button>
+              <button @click="deleteLearning(l.id)" class="text-slate-300 text-[11px]">✕</button>
+            </div>
+          </div>
+          <template x-if="l.title"><div class="text-xs font-medium text-slate-800" x-text="l.title"></div></template>
+          <div class="text-xs text-slate-600 whitespace-pre-wrap" x-text="l.content"></div>
+          <div class="text-[9px] text-slate-400" x-text="'记录于 ' + (l.updatedAt || l.createdAt || '')"></div>
+        </div>
+      </template>
+    </div>
+  </div>
+
   <div class="space-y-3">
     <div class="flex justify-between items-center px-1">
       <h2 class="font-semibold text-sm text-slate-600">内容资产台账</h2>
@@ -218,6 +248,26 @@
   </div>
 </div>
 
+<!-- 新增/编辑平台经验 -->
+<div x-show="showLearningModal" class="fixed inset-0 bg-black/40 flex items-end z-20" x-cloak>
+  <div class="bg-white w-full rounded-t-3xl p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+    <div class="flex justify-between items-center"><h3 class="font-bold text-base" x-text="isEditingLearning ? '编辑经验总结' : '记录平台经验'"></h3><button @click="closeLearningModal()" class="text-slate-400 text-sm">取消</button></div>
+    <form @submit.prevent="saveLearning" class="space-y-3">
+      <div class="grid grid-cols-2 gap-2">
+        <div><label class="block text-xs font-medium text-slate-600 mb-1">所属平台</label>
+          <select x-model="learningForm.platform" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm"><template x-for="p in platforms" :key="p.name"><option :value="p.name" x-text="p.name"></option></template></select></div>
+        <div><label class="block text-xs font-medium text-slate-600 mb-1">类型</label>
+          <select x-model="learningForm.kind" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm"><template x-for="k in LEARNING_KINDS" :key="k"><option x-text="k"></option></template></select></div>
+      </div>
+      <div><label class="block text-xs font-medium text-slate-600 mb-1">标题（选填）</label>
+        <input type="text" x-model="learningForm.title" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="例如：抖音美女类内容易限流"></div>
+      <div><label class="block text-xs font-medium text-slate-600 mb-1">结论 / 经验 / 特点</label>
+        <textarea x-model="learningForm.content" required rows="4" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="把这次的发现写下来：发生了什么、你总结的规律、下次怎么做……"></textarea></div>
+      <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-medium text-sm" x-text="isEditingLearning ? '确认修改' : '保存'"></button>
+    </form>
+  </div>
+</div>
+
 <!-- 备份与恢复 -->
 <div x-show="showBackupModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-30 p-4" x-cloak>
   <div class="bg-white w-full max-w-sm rounded-2xl p-5 space-y-3 shadow-xl max-h-[90vh] overflow-y-auto">
@@ -283,7 +333,7 @@
 
 <script>
 // 存储 key 请保持不变，改了就读不到旧数据
-const KEYS = { platforms: 'content_platforms', tools: 'content_tools', items: 'content_items_v3' };
+const KEYS = { platforms: 'content_platforms', tools: 'content_tools', items: 'content_items_v3', learnings: 'content_learnings' };
 const DEFAULT_PLATFORMS = ["抖音","小红书","视频号","公众号","B站","YouTube","微博","知乎","即刻","Twitter/X"];
 
 // 平台品牌样式：卡片上按各平台官方风格（品牌色 + 图标）展示
@@ -312,6 +362,9 @@ const FORM_ICONS = { '图文':'📝', '短视频':'🎬', '长视频':'🎥', '�
 const PLATFORM_SOURCES = ['全部自创','自创为主','搬运改编为主','纯搬运'];
 const TOOL_MATURITY = ['想法','开发中','可用','成熟'];
 const MATURITY_CLASS = { '想法':'bg-slate-100 text-slate-600', '开发中':'bg-amber-50 text-amber-700', '可用':'bg-emerald-50 text-emerald-700', '成熟':'bg-indigo-50 text-indigo-700' };
+const LEARNING_KINDS = ['经验','踩坑','结论','特点'];
+const LEARNING_KIND_CLASS = { '经验':'bg-emerald-50 text-emerald-700', '踩坑':'bg-rose-50 text-rose-700', '结论':'bg-indigo-50 text-indigo-700', '特点':'bg-amber-50 text-amber-700' };
+function learningKindClass(k) { return LEARNING_KIND_CLASS[k] || LEARNING_KIND_CLASS['经验']; };
 function platBrand(name) {
   const k = String(name || '').trim();
   if (PLATFORM_BRANDS[k]) return PLATFORM_BRANDS[k];
@@ -404,19 +457,23 @@ function save(key, val) {
   try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { alert('保存失败：浏览器存储不可用'); }
 }
 const blankForm = (p) => ({ title:'', platforms:[p || '小红书'], tools:[], form:'图文', status:'想法', sourceType:'原创', refPlatforms:[], refNote:'', publishDate:'', traffic:'', link:'' });
+const blankLearningForm = (platforms) => ({ platform: (platforms[0] && platforms[0].name) || '', kind:'经验', title:'', content:'' });
 
 function contentApp() {
   return {
     showModal:false, showPlatformModal:false, showToolModal:false, showBackupModal:false,
-    showPlatformForm:false, showToolForm:false,
+    showPlatformForm:false, showToolForm:false, showLearningModal:false,
     isEditing:false, editId:null, filterStatus:'全部',
+    isEditingLearning:false, editLearningId:null,
     editingPlatformIdx:-1, editingToolIdx:-1,
     platformForm:{ name:'', topics:'', source:'全部自创', note:'' },
     toolForm:{ name:'', func:'', version:'', maturity:'可用' },
+    learningForm:{ platform:'', kind:'经验', title:'', content:'' },
     importText:'', backupMsg:'', backupMsgOk:true,
     platforms: load(KEYS.platforms, DEFAULT_PLATFORMS),
     tools: load(KEYS.tools, DEFAULT_TOOLS),
     items: load(KEYS.items, []),
+    learnings: load(KEYS.learnings, []),
     form: blankForm(),
 
     // 启动时自动迁移老数据：平台/工具字符串→档案对象，traffic→带时间的热度历史
@@ -540,10 +597,36 @@ function contentApp() {
     },
     deleteItem(id) { if (confirm('确定删除这条内容吗？')) { this.items = this.items.filter(i => i.id !== id); save(KEYS.items, this.items); } },
 
+    // ===== 平台经验总结 =====
+    openLearningModal() {
+      this.isEditingLearning = false; this.editLearningId = null;
+      this.learningForm = blankLearningForm(this.platforms);
+      this.showLearningModal = true;
+    },
+    editLearning(l) {
+      this.isEditingLearning = true; this.editLearningId = l.id;
+      this.learningForm = { platform: l.platform || '', kind: l.kind || '经验', title: l.title || '', content: l.content || '' };
+      this.showLearningModal = true;
+    },
+    closeLearningModal() { this.showLearningModal = false; },
+    saveLearning() {
+      const f = { platform: this.learningForm.platform, kind: this.learningForm.kind, title: this.learningForm.title.trim(), content: this.learningForm.content.trim() };
+      if (!f.content) { alert('请填写结论 / 经验内容'); return; }
+      const today = new Date().toISOString().split('T')[0];
+      if (this.isEditingLearning) {
+        this.learnings = this.learnings.map(l => l.id === this.editLearningId ? { ...l, ...f, updatedAt: today } : l);
+      } else {
+        this.learnings.unshift({ id: Date.now(), createdAt: today, updatedAt: today, ...f });
+      }
+      save(KEYS.learnings, this.learnings);
+      this.closeLearningModal();
+    },
+    deleteLearning(id) { if (confirm('确定删除这条经验总结吗？')) { this.learnings = this.learnings.filter(l => l.id !== id); save(KEYS.learnings, this.learnings); } },
+
     // ===== 备份与恢复 =====
     openBackup() { this.backupMsg=''; this.importText=''; this.showBackupModal=true; },
     backupString() {
-      return JSON.stringify({ app:'content-matrix', name:'创作矩阵', version:2, exportedAt:new Date().toISOString(), data:{ platforms:this.platforms, tools:this.tools, items:this.items } }, null, 2);
+      return JSON.stringify({ app:'content-matrix', name:'创作矩阵', version:2, exportedAt:new Date().toISOString(), data:{ platforms:this.platforms, tools:this.tools, items:this.items, learnings:this.learnings } }, null, 2);
     },
     exportFile() {
       const blob = new Blob([this.backupString()], { type:'application/json' });
@@ -574,6 +657,7 @@ function contentApp() {
       this.items.forEach(it => { it.trafficHistory = normalizeTraffic(it); });
       if (Array.isArray(src.platforms)) this.platforms = normalizePlatforms(src.platforms);
       if (Array.isArray(src.tools)) this.tools = normalizeTools(src.tools);
+      if (Array.isArray(src.learnings)) this.learnings = src.learnings;
       save(KEYS.items, this.items); save(KEYS.platforms, this.platforms); save(KEYS.tools, this.tools);
       this.importText = ''; this.msg('已恢复 ' + this.items.length + ' 条内容', true);
     },
