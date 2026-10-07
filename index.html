@@ -19,8 +19,9 @@
   <div class="max-w-md mx-auto px-4 py-3 flex justify-between items-center">
     <h1 class="font-bold text-lg text-slate-900">🚀 创作矩阵</h1>
     <div class="flex items-center gap-1.5">
-      <button @click="showPlatformModal = true" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded-lg font-medium">⚙️ 平台</button>
+      <button @click="showPlatformModal = true" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded-lg font-medium">📡 平台</button>
       <button @click="showToolModal = true" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded-lg font-medium">🛠️ 工具箱</button>
+      <a href="./pages/flow.html" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded-lg font-medium">📈 趋势</a>
       <button @click="openBackup()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded-lg font-medium">💾 备份</button>
     </div>
   </div>
@@ -94,46 +95,121 @@
         <div class="grid grid-cols-3 gap-1 pt-2 border-t border-slate-100 text-[11px] text-slate-500">
           <div><span class="text-slate-400 block text-[10px]">创建</span><span x-text="item.createdAt || '-'"></span></div>
           <div><span class="text-slate-400 block text-[10px]">发布</span><span x-text="item.publishDate || '未发布'"></span></div>
-          <div class="text-right"><span class="text-slate-400 block text-[10px]">当前流量</span><span class="font-semibold text-indigo-600" x-text="item.traffic || '0'"></span></div>
+          <div class="text-right">
+            <span class="text-slate-400 block text-[10px]">当前流量</span>
+            <span class="font-semibold text-indigo-600" x-text="item.traffic || '0'"></span>
+            <button @click="quickTraffic(item)" class="text-[10px] text-indigo-500 underline ml-1">更新</button>
+            <template x-if="item.trafficHistory && item.trafficHistory.length"><span class="text-slate-400 block text-[9px]" x-text="'更新于 ' + item.trafficHistory[item.trafficHistory.length-1].d + ' · 共' + item.trafficHistory.length + '次'"></span></template>
+          </div>
         </div>
+        <template x-if="trendPoints(item.trafficHistory)">
+          <div class="flex items-center gap-2">
+            <svg viewBox="0 0 100 28" class="w-28 h-7 shrink-0"><polyline :points="trendPoints(item.trafficHistory)" fill="none" stroke="#4f46e5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <template x-if="trendDelta(item.trafficHistory)"><span class="text-[10px] font-medium" :class="trendDelta(item.trafficHistory).up ? 'text-emerald-600' : 'text-rose-500'" x-text="trendDelta(item.trafficHistory).txt"></span></template>
+            <span class="text-[10px] text-slate-400">热度趋势</span>
+          </div>
+        </template>
       </div>
     </template>
   </div>
 </main>
 
-<!-- 平台管理 -->
+<!-- 平台档案 -->
 <div x-show="showPlatformModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-30 p-4" x-cloak>
-  <div class="bg-white w-full max-w-sm rounded-2xl p-5 space-y-4 shadow-xl">
-    <div class="flex justify-between items-center"><h3 class="font-bold text-base">自定义管理发布平台</h3><button @click="showPlatformModal = false" class="text-slate-400 text-sm">关闭</button></div>
-    <div class="flex gap-2">
-      <input type="text" x-model="newPlatformName" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="输入新平台名称...">
-      <button @click="addPlatform()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-medium">添加</button>
-    </div>
-    <div class="space-y-1.5 max-h-60 overflow-y-auto">
-      <template x-for="(p, index) in platforms" :key="p">
-        <div class="flex justify-between items-center bg-slate-50 px-3 py-2 rounded-xl border border-slate-100 text-sm">
-          <span class="text-xs font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1" :style="'background:' + platBrand(p).bg + ';color:' + platBrand(p).fg"><span x-text="platBrand(p).icon"></span><span x-text="p"></span></span>
-          <button @click="removePlatform(index)" class="text-slate-400 text-xs">删除</button>
+  <div class="bg-white w-full max-w-sm rounded-2xl p-5 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
+    <div class="flex justify-between items-center"><h3 class="font-bold text-base">📡 平台档案</h3><button @click="showPlatformModal = false; showPlatformForm = false" class="text-slate-400 text-sm">关闭</button></div>
+
+    <template x-if="!showPlatformForm">
+      <div class="space-y-3">
+        <button @click="openPlatformForm()" class="w-full border border-dashed border-indigo-300 text-indigo-600 py-2 rounded-xl text-sm font-medium">+ 新增平台</button>
+        <div class="space-y-2 max-h-72 overflow-y-auto">
+          <template x-for="(p, index) in platforms" :key="p.name">
+            <div class="bg-slate-50 px-3 py-2.5 rounded-xl border border-slate-100 space-y-1.5">
+              <div class="flex justify-between items-center">
+                <span class="text-xs font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1" :style="'background:' + platBrand(p.name).bg + ';color:' + platBrand(p.name).fg"><span x-text="platBrand(p.name).icon"></span><span x-text="p.name"></span></span>
+                <div class="flex gap-3">
+                  <button @click="openPlatformForm(p, index)" class="text-indigo-500 text-xs">编辑</button>
+                  <button @click="removePlatform(index)" class="text-slate-400 text-xs">删除</button>
+                </div>
+              </div>
+              <template x-if="p.topics"><div class="text-xs text-slate-600" x-text="'运营内容：' + p.topics"></div></template>
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="text-[10px] px-1.5 py-0.5 rounded font-medium" :class="p.source.indexOf('自创') === 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'" x-text="p.source"></span>
+                <template x-if="p.note"><span class="text-[10px] text-slate-400" x-text="p.note"></span></template>
+              </div>
+            </div>
+          </template>
+          <template x-if="platforms.length === 0"><div class="text-center text-slate-400 text-xs py-4">还没有平台，点上方新增一个吧</div></template>
         </div>
-      </template>
-    </div>
+      </div>
+    </template>
+
+    <template x-if="showPlatformForm">
+      <div class="space-y-3">
+        <div><label class="block text-xs font-medium text-slate-600 mb-1">平台名称</label>
+          <input type="text" x-model="platformForm.name" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="例如：小红书"></div>
+        <div><label class="block text-xs font-medium text-slate-600 mb-1">运营内容方向</label>
+          <input type="text" x-model="platformForm.topics" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="例如：AI 工具、两性情感"></div>
+        <div><label class="block text-xs font-medium text-slate-600 mb-1">内容来源</label>
+          <select x-model="platformForm.source" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm"><template x-for="s in PLATFORM_SOURCES" :key="s"><option x-text="s"></option></template></select></div>
+        <div><label class="block text-xs font-medium text-slate-600 mb-1">平台特点备注</label>
+          <input type="text" x-model="platformForm.note" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="例如：流量大但审核严、用户偏年轻"></div>
+        <div class="flex gap-2">
+          <button @click="showPlatformForm = false" class="flex-1 bg-slate-100 text-slate-600 py-2 rounded-xl text-sm font-medium">取消</button>
+          <button @click="savePlatform()" class="flex-1 bg-indigo-600 text-white py-2 rounded-xl text-sm font-medium">保存</button>
+        </div>
+      </div>
+    </template>
   </div>
 </div>
 
-<!-- 工具箱 -->
+<!-- 工具档案 -->
 <div x-show="showToolModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-30 p-4" x-cloak>
-  <div class="bg-white w-full max-w-sm rounded-2xl p-5 space-y-4 shadow-xl">
-    <div class="flex justify-between items-center"><h3 class="font-bold text-base">自定义生产力工具箱</h3><button @click="showToolModal = false" class="text-slate-400 text-sm">关闭</button></div>
-    <p class="text-xs text-slate-400">管理你已有或正在打造的自动化工具，方便在内容创作时关联标记。</p>
-    <div class="flex gap-2">
-      <input type="text" x-model="newToolName" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="例如：文字生成图片...">
-      <button @click="addTool()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-medium">添加</button>
-    </div>
-    <div class="space-y-1.5 max-h-60 overflow-y-auto">
-      <template x-for="(t, index) in tools" :key="t">
-        <div class="flex justify-between items-center bg-slate-50 px-3 py-2 rounded-xl border border-slate-100 text-sm"><span x-text="'🛠️ ' + t"></span><button @click="removeTool(index)" class="text-slate-400 text-xs">删除</button></div>
-      </template>
-    </div>
+  <div class="bg-white w-full max-w-sm rounded-2xl p-5 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
+    <div class="flex justify-between items-center"><h3 class="font-bold text-base">🛠️ 工具档案</h3><button @click="showToolModal = false; showToolForm = false" class="text-slate-400 text-sm">关闭</button></div>
+    <p class="text-xs text-slate-400">记录每个工具的功能、版本与成熟度，方便在内容创作时选用。</p>
+
+    <template x-if="!showToolForm">
+      <div class="space-y-3">
+        <button @click="openToolForm()" class="w-full border border-dashed border-indigo-300 text-indigo-600 py-2 rounded-xl text-sm font-medium">+ 新增工具</button>
+        <div class="space-y-2 max-h-72 overflow-y-auto">
+          <template x-for="(t, index) in tools" :key="t.name">
+            <div class="bg-slate-50 px-3 py-2.5 rounded-xl border border-slate-100 space-y-1.5">
+              <div class="flex justify-between items-center">
+                <span class="text-sm font-medium text-slate-800" x-text="'🛠️ ' + t.name"></span>
+                <div class="flex items-center gap-2">
+                  <span class="text-[10px] px-1.5 py-0.5 rounded font-medium" :class="maturityClass(t.maturity)" x-text="t.maturity"></span>
+                  <button @click="openToolForm(t, index)" class="text-indigo-500 text-xs">编辑</button>
+                  <button @click="removeTool(index)" class="text-slate-400 text-xs">删除</button>
+                </div>
+              </div>
+              <template x-if="t.func"><div class="text-xs text-slate-600" x-text="'功能：' + t.func"></div></template>
+              <template x-if="t.version"><div class="text-[10px] text-slate-400" x-text="'版本：' + t.version"></div></template>
+            </div>
+          </template>
+          <template x-if="tools.length === 0"><div class="text-center text-slate-400 text-xs py-4">还没有工具，点上方新增一个吧</div></template>
+        </div>
+      </div>
+    </template>
+
+    <template x-if="showToolForm">
+      <div class="space-y-3">
+        <div><label class="block text-xs font-medium text-slate-600 mb-1">工具名称</label>
+          <input type="text" x-model="toolForm.name" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="例如：文字生成图片"></div>
+        <div><label class="block text-xs font-medium text-slate-600 mb-1">功能描述</label>
+          <input type="text" x-model="toolForm.func" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="例如：输入文案自动配图"></div>
+        <div class="grid grid-cols-2 gap-2">
+          <div><label class="block text-xs font-medium text-slate-600 mb-1">实现版本</label>
+            <input type="text" x-model="toolForm.version" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="例如：v1.2"></div>
+          <div><label class="block text-xs font-medium text-slate-600 mb-1">成熟度</label>
+            <select x-model="toolForm.maturity" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm"><template x-for="m in TOOL_MATURITY" :key="m"><option x-text="m"></option></template></select></div>
+        </div>
+        <div class="flex gap-2">
+          <button @click="showToolForm = false" class="flex-1 bg-slate-100 text-slate-600 py-2 rounded-xl text-sm font-medium">取消</button>
+          <button @click="saveTool()" class="flex-1 bg-indigo-600 text-white py-2 rounded-xl text-sm font-medium">保存</button>
+        </div>
+      </div>
+    </template>
   </div>
 </div>
 
@@ -165,11 +241,11 @@
         <input type="text" x-model="form.title" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="例如：独立开发者的副业复盘"></div>
       <div><label class="block text-xs font-medium text-slate-600 mb-1">目标平台 (可多选)</label>
         <div class="grid grid-cols-3 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-          <template x-for="p in platforms"><label class="flex items-center gap-1.5 text-xs cursor-pointer"><input type="checkbox" :value="p" x-model="form.platforms" class="rounded"><span x-text="platBrand(p).icon + ' ' + p"></span></label></template>
+          <template x-for="p in platforms"><label class="flex items-center gap-1.5 text-xs cursor-pointer"><input type="checkbox" :value="p.name" x-model="form.platforms" class="rounded"><span x-text="platBrand(p.name).icon + ' ' + p.name"></span></label></template>
         </div></div>
       <div><label class="block text-xs font-medium text-slate-600 mb-1">使用/打造的工具 (可多选)</label>
         <div class="grid grid-cols-2 gap-2 bg-indigo-50/40 p-2.5 rounded-xl border border-indigo-100">
-          <template x-for="t in tools"><label class="flex items-center gap-1.5 text-xs cursor-pointer"><input type="checkbox" :value="t" x-model="form.tools" class="rounded"><span x-text="t"></span></label></template>
+          <template x-for="t in tools"><label class="flex items-center gap-1.5 text-xs cursor-pointer"><input type="checkbox" :value="t.name" x-model="form.tools" class="rounded"><span x-text="t.name"></span></label></template>
         </div></div>
       <div class="grid grid-cols-2 gap-2">
         <div><label class="block text-xs font-medium text-slate-600 mb-1">内容形式</label>
@@ -183,7 +259,7 @@
         <div class="space-y-2 bg-amber-50/50 p-3 rounded-xl border border-amber-200">
           <label class="block text-xs font-medium text-amber-800">参考平台 (可多选)</label>
           <div class="grid grid-cols-3 gap-2">
-            <template x-for="p in platforms"><label class="flex items-center gap-1.5 text-xs cursor-pointer"><input type="checkbox" :value="p" x-model="form.refPlatforms" class="rounded"><span x-text="platBrand(p).icon + ' ' + p"></span></label></template>
+            <template x-for="p in platforms"><label class="flex items-center gap-1.5 text-xs cursor-pointer"><input type="checkbox" :value="p.name" x-model="form.refPlatforms" class="rounded"><span x-text="platBrand(p.name).icon + ' ' + p.name"></span></label></template>
           </div>
           <label class="block text-xs font-medium text-amber-800 mt-2 mb-1">参考来源链接/出处说明</label>
           <input type="text" x-model="form.refNote" class="w-full bg-white border border-amber-200 rounded-xl px-3 py-2 text-sm" placeholder="例如：某博主爆款选题 / 原文链接">
@@ -228,11 +304,72 @@ const PLATFORM_BRANDS = {
   '百家号':  { icon:'ⓑ', fg:'#ffffff', bg:'#2932e1' },
 };
 const FORM_ICONS = { '图文':'📝', '短视频':'🎬', '长视频':'🎥', '纯文字':'✍️' };
+const PLATFORM_SOURCES = ['全部自创','自创为主','搬运改编为主','纯搬运'];
+const TOOL_MATURITY = ['想法','开发中','可用','成熟'];
+const MATURITY_CLASS = { '想法':'bg-slate-100 text-slate-600', '开发中':'bg-amber-50 text-amber-700', '可用':'bg-emerald-50 text-emerald-700', '成熟':'bg-indigo-50 text-indigo-700' };
 function platBrand(name) {
   const k = String(name || '').trim();
-  return PLATFORM_BRANDS[k] || PLATFORM_BRANDS[k.toLowerCase()] || { icon:'🌐', fg:'#475569', bg:'#eef2f7' };
+  if (PLATFORM_BRANDS[k]) return PLATFORM_BRANDS[k];
+  const lk = k.toLowerCase();
+  if (PLATFORM_BRANDS[lk]) return PLATFORM_BRANDS[lk];
+  // 模糊匹配：名称里包含已知平台关键词（如“微信视频号”、“公众号-频谱华章”）
+  const keys = Object.keys(PLATFORM_BRANDS).sort((a, b) => b.length - a.length);
+  for (const key of keys) { if (key.length >= 2 && k.includes(key)) return PLATFORM_BRANDS[key]; }
+  return { icon:'🌐', fg:'#475569', bg:'#eef2f7' };
 }
 function formIcon(f) { return FORM_ICONS[f] || '📄'; }
+// 把 "1.7w" / "3万" / "1.2k" / "50" 解析成数字，用于画趋势
+function parseTraffic(s) {
+  const m = String(s || '').match(/([\d.]+)\s*(w|W|万|k|K|千)?/);
+  if (!m) return null;
+  const n = parseFloat(m[1]);
+  if (isNaN(n)) return null;
+  const u = (m[2] || '').toLowerCase();
+  const mult = (u === 'w' || u === '万') ? 10000 : (u === 'k' || u === '千') ? 1000 : 1;
+  return n * mult;
+}
+// 热度历史 → SVG 折线 points（取最近12个点）
+function trendPoints(hist) {
+  const pts = (hist || []).filter(h => typeof h.v === 'number' && !isNaN(h.v)).slice(-12);
+  if (pts.length < 2) return '';
+  const vs = pts.map(h => h.v);
+  const min = Math.min.apply(null, vs), max = Math.max.apply(null, vs);
+  const span = (max - min) || 1;
+  return pts.map((h, i) => ((i / (pts.length - 1) * 96 + 2).toFixed(1)) + ',' + ((26 - (h.v - min) / span * 22).toFixed(1))).join(' ');
+}
+// 最新一次相对上一次的变化
+function trendDelta(hist) {
+  const pts = (hist || []).filter(h => typeof h.v === 'number' && !isNaN(h.v));
+  if (pts.length < 2) return null;
+  const a = pts[pts.length - 2].v, b = pts[pts.length - 1].v;
+  if (!a) return null;
+  const pct = (b - a) / a * 100;
+  return { up: b >= a, txt: (b >= a ? '▲' : '▼') + ' ' + Math.abs(pct).toFixed(0) + '%' };
+}
+// ---- 数据结构升级：平台/工具从纯字符串升级为档案对象，老数据自动迁移 ----
+// "微信视频号（智慧、哲理等内容）" 会自动拆成 名称+运营内容
+function normalizePlatforms(list) {
+  return (list || []).map(p => {
+    if (typeof p === 'string') {
+      const m = p.match(/^(.+?)（(.+?)）$/);
+      return { name: (m ? m[1] : p).trim(), topics: m ? m[2].trim() : '', source: '全部自创', note: '' };
+    }
+    return { name: p.name || '', topics: p.topics || '', source: p.source || '全部自创', note: p.note || '' };
+  }).filter(p => p.name);
+}
+function normalizeTools(list) {
+  return (list || []).map(t => typeof t === 'string'
+    ? { name: t, func: '', version: '', maturity: '可用' }
+    : { name: t.name || '', func: t.func || '', version: t.version || '', maturity: t.maturity || '可用' }
+  ).filter(t => t.name);
+}
+// 老条目的 traffic 字符串转成带时间的热度历史
+function normalizeTraffic(item) {
+  if (Array.isArray(item.trafficHistory) && item.trafficHistory.length) return item.trafficHistory;
+  const t = String(item.traffic || '').trim();
+  if (!t) return [];
+  return [{ d: item.publishDate || item.createdAt || new Date().toISOString().split('T')[0], v: parseTraffic(t), label: t }];
+}
 const DEFAULT_TOOLS = ["视频提取音频","文字生成图片","音频转文字","文字转音频"];
 
 function load(key, fallback) {
@@ -247,21 +384,115 @@ const blankForm = (p) => ({ title:'', platforms:[p || '小红书'], tools:[], fo
 function contentApp() {
   return {
     showModal:false, showPlatformModal:false, showToolModal:false, showBackupModal:false,
-    isEditing:false, editId:null, filterStatus:'全部', newPlatformName:'', newToolName:'',
+    showPlatformForm:false, showToolForm:false,
+    isEditing:false, editId:null, filterStatus:'全部',
+    editingPlatformIdx:-1, editingToolIdx:-1,
+    platformForm:{ name:'', topics:'', source:'全部自创', note:'' },
+    toolForm:{ name:'', func:'', version:'', maturity:'可用' },
     importText:'', backupMsg:'', backupMsgOk:true,
     platforms: load(KEYS.platforms, DEFAULT_PLATFORMS),
     tools: load(KEYS.tools, DEFAULT_TOOLS),
     items: load(KEYS.items, []),
     form: blankForm(),
 
+    // 启动时自动迁移老数据：平台/工具字符串→档案对象，traffic→带时间的热度历史
+    init() {
+      this.platforms = normalizePlatforms(this.platforms);
+      this.tools = normalizeTools(this.tools);
+      this.items.forEach(it => { it.trafficHistory = normalizeTraffic(it); });
+      save(KEYS.platforms, this.platforms); save(KEYS.tools, this.tools); save(KEYS.items, this.items);
+    },
+
     get filteredItems() { return this.filterStatus === '全部' ? this.items : this.items.filter(i => i.status === this.filterStatus); },
 
-    addPlatform() { const n = this.newPlatformName.trim(); if (n && !this.platforms.includes(n)) { this.platforms.push(n); this.newPlatformName=''; save(KEYS.platforms, this.platforms); } },
-    removePlatform(i) { if (confirm('确定删除该平台吗？')) { this.platforms.splice(i,1); save(KEYS.platforms, this.platforms); } },
-    addTool() { const n = this.newToolName.trim(); if (n && !this.tools.includes(n)) { this.tools.push(n); this.newToolName=''; save(KEYS.tools, this.tools); } },
-    removeTool(i) { if (confirm('确定删除该工具吗？')) { this.tools.splice(i,1); save(KEYS.tools, this.tools); } },
+    // ===== 平台档案 =====
+    openPlatformForm(p, idx) {
+      this.editingPlatformIdx = (idx === undefined || idx === null) ? -1 : idx;
+      this.platformForm = p ? { name:p.name||'', topics:p.topics||'', source:p.source||'全部自创', note:p.note||'' }
+                            : { name:'', topics:'', source:'全部自创', note:'' };
+      this.showPlatformForm = true;
+    },
+    savePlatform() {
+      const f = { name:this.platformForm.name.trim(), topics:this.platformForm.topics.trim(), source:this.platformForm.source, note:this.platformForm.note.trim() };
+      if (!f.name) { alert('请填写平台名称'); return; }
+      if (this.platforms.some((p, i) => p.name === f.name && i !== this.editingPlatformIdx)) { alert('已存在同名平台'); return; }
+      if (this.editingPlatformIdx >= 0) {
+        const oldName = this.platforms[this.editingPlatformIdx].name;
+        this.platforms[this.editingPlatformIdx] = f;
+        if (oldName && oldName !== f.name) { // 改名后同步更新内容里的引用
+          this.items.forEach(it => {
+            if (it.platforms) it.platforms = it.platforms.map(n => n === oldName ? f.name : n);
+            if (it.refPlatforms) it.refPlatforms = it.refPlatforms.map(n => n === oldName ? f.name : n);
+          });
+          save(KEYS.items, this.items);
+        }
+      } else { this.platforms.push(f); }
+      save(KEYS.platforms, this.platforms);
+      this.showPlatformForm = false;
+    },
+    removePlatform(i) {
+      const name = this.platforms[i] && this.platforms[i].name;
+      if (!confirm('确定删除「' + name + '」吗？相关内容的平台标记会一并清除。')) return;
+      this.platforms.splice(i, 1);
+      this.items.forEach(it => {
+        if (it.platforms) it.platforms = it.platforms.filter(n => n !== name);
+        if (it.refPlatforms) it.refPlatforms = it.refPlatforms.filter(n => n !== name);
+      });
+      save(KEYS.platforms, this.platforms); save(KEYS.items, this.items);
+    },
 
-    openModal() { this.isEditing=false; this.editId=null; this.form=blankForm(this.platforms[0]); this.showModal=true; },
+    // ===== 工具档案 =====
+    openToolForm(t, idx) {
+      this.editingToolIdx = (idx === undefined || idx === null) ? -1 : idx;
+      this.toolForm = t ? { name:t.name||'', func:t.func||'', version:t.version||'', maturity:t.maturity||'可用' }
+                        : { name:'', func:'', version:'', maturity:'可用' };
+      this.showToolForm = true;
+    },
+    saveTool() {
+      const f = { name:this.toolForm.name.trim(), func:this.toolForm.func.trim(), version:this.toolForm.version.trim(), maturity:this.toolForm.maturity };
+      if (!f.name) { alert('请填写工具名称'); return; }
+      if (this.tools.some((t, i) => t.name === f.name && i !== this.editingToolIdx)) { alert('已存在同名工具'); return; }
+      if (this.editingToolIdx >= 0) {
+        const oldName = this.tools[this.editingToolIdx].name;
+        this.tools[this.editingToolIdx] = f;
+        if (oldName && oldName !== f.name) {
+          this.items.forEach(it => { if (it.tools) it.tools = it.tools.map(n => n === oldName ? f.name : n); });
+          save(KEYS.items, this.items);
+        }
+      } else { this.tools.push(f); }
+      save(KEYS.tools, this.tools);
+      this.showToolForm = false;
+    },
+    removeTool(i) {
+      const name = this.tools[i] && this.tools[i].name;
+      if (!confirm('确定删除「' + name + '」吗？相关内容的工具标记会一并清除。')) return;
+      this.tools.splice(i, 1);
+      this.items.forEach(it => { if (it.tools) it.tools = it.tools.filter(n => n !== name); });
+      save(KEYS.tools, this.tools); save(KEYS.items, this.items);
+    },
+    maturityClass(m) { return MATURITY_CLASS[m] || MATURITY_CLASS['想法']; },
+
+    // ===== 热度记录：每次更新都带时间戳，卡片上画趋势 =====
+    stampTraffic(it, val) {
+      val = (val || '').trim();
+      it.trafficHistory = it.trafficHistory || [];
+      const today = new Date().toISOString().split('T')[0];
+      const last = it.trafficHistory[it.trafficHistory.length - 1];
+      if (val && (!last || last.label !== val)) {
+        const entry = { d: today, v: parseTraffic(val), label: val };
+        const ex = it.trafficHistory.findIndex(h => h.d === today);
+        if (ex >= 0) it.trafficHistory[ex] = entry; else it.trafficHistory.push(entry);
+      }
+      it.traffic = val;
+    },
+    quickTraffic(item) {
+      const v = prompt('更新今日热度' + (item.traffic ? '（当前：' + item.traffic + '）' : ''), item.traffic || '');
+      if (v === null || !v.trim()) return;
+      this.stampTraffic(item, v);
+      save(KEYS.items, this.items);
+    },
+
+    openModal() { this.isEditing=false; this.editId=null; const pn = this.platforms[0] && this.platforms[0].name; this.form=blankForm(pn || '小红书'); this.showModal=true; },
     editItem(item) {
       this.isEditing=true; this.editId=item.id;
       this.form = { ...blankForm(), ...item, platforms: item.platforms || [item.platform || '小红书'], tools: item.tools || [], refPlatforms: item.refPlatforms || [] };
@@ -270,9 +501,16 @@ function contentApp() {
     closeModal() { this.showModal=false; },
     saveItem() {
       if (this.isEditing) {
-        this.items = this.items.map(i => i.id === this.editId ? { ...i, ...this.form } : i);
+        this.items = this.items.map(i => {
+          if (i.id !== this.editId) return i;
+          const it = { ...i, ...this.form };
+          this.stampTraffic(it, this.form.traffic);
+          return it;
+        });
       } else {
-        this.items.unshift({ id: Date.now(), createdAt: new Date().toISOString().split('T')[0], ...this.form });
+        const it = { id: Date.now(), createdAt: new Date().toISOString().split('T')[0], ...this.form };
+        this.stampTraffic(it, this.form.traffic);
+        this.items.unshift(it);
       }
       save(KEYS.items, this.items); this.closeModal();
     },
@@ -309,8 +547,9 @@ function contentApp() {
       if (!src || !Array.isArray(src.items)) return this.msg('这不是有效的备份：缺少内容列表', false);
       if (!confirm('将用备份覆盖当前 ' + this.items.length + ' 条内容，继续吗？')) return;
       this.items = src.items;
-      if (Array.isArray(src.platforms)) this.platforms = src.platforms;
-      if (Array.isArray(src.tools)) this.tools = src.tools;
+      this.items.forEach(it => { it.trafficHistory = normalizeTraffic(it); });
+      if (Array.isArray(src.platforms)) this.platforms = normalizePlatforms(src.platforms);
+      if (Array.isArray(src.tools)) this.tools = normalizeTools(src.tools);
       save(KEYS.items, this.items); save(KEYS.platforms, this.platforms); save(KEYS.tools, this.tools);
       this.importText = ''; this.msg('已恢复 ' + this.items.length + ' 条内容', true);
     },
