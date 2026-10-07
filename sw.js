@@ -1,5 +1,5 @@
 // 每次改版 index.html 后，把版本号加一，确保用户拿到新页面
-const CACHE = 'content-matrix-v1';
+const CACHE = 'content-matrix-v2';
 const CORE = ['./', './index.html', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', e => {
