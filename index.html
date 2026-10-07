@@ -21,7 +21,6 @@
     <div class="flex items-center gap-1.5">
       <button @click="showPlatformModal = true" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded-lg font-medium">📡 平台</button>
       <button @click="showToolModal = true" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded-lg font-medium">🛠️ 工具箱</button>
-      <a href="./pages/flow.html" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded-lg font-medium">📈 趋势</a>
       <button @click="openBackup()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded-lg font-medium">💾 备份</button>
     </div>
   </div>
@@ -92,6 +91,19 @@
             <template x-for="t in item.tools"><span class="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md border border-indigo-100" x-text="'🛠️ ' + t"></span></template>
           </div>
         </template>
+        <template x-if="trendSvg(item.trafficHistory)">
+          <div class="bg-indigo-50/40 border border-indigo-100/60 rounded-xl px-2.5 pt-1.5 pb-1">
+            <div class="flex justify-between items-center">
+              <span class="text-[10px] text-slate-400">热度 · 时间曲线</span>
+              <span class="text-[9px] font-medium" :class="trendChart(item.trafficHistory).delta.up ? 'text-emerald-600' : 'text-rose-500'" x-text="trendChart(item.trafficHistory).delta.txt + ' · 共' + item.trafficHistory.length + '次'"></span>
+            </div>
+            <svg viewBox="0 0 120 40" class="w-full h-12 block" x-html="trendSvg(item.trafficHistory)"></svg>
+            <div class="flex justify-between text-[8px] text-slate-400 -mt-0.5">
+              <span x-text="trendChart(item.trafficHistory).first.d.slice(5)"></span>
+              <span x-text="trendChart(item.trafficHistory).last.d.slice(5)"></span>
+            </div>
+          </div>
+        </template>
         <div class="grid grid-cols-3 gap-1 pt-2 border-t border-slate-100 text-[11px] text-slate-500">
           <div><span class="text-slate-400 block text-[10px]">创建</span><span x-text="item.createdAt || '-'"></span></div>
           <div><span class="text-slate-400 block text-[10px]">发布</span><span x-text="item.publishDate || '未发布'"></span></div>
@@ -102,13 +114,6 @@
             <template x-if="item.trafficHistory && item.trafficHistory.length"><span class="text-slate-400 block text-[9px]" x-text="'更新于 ' + item.trafficHistory[item.trafficHistory.length-1].d + ' · 共' + item.trafficHistory.length + '次'"></span></template>
           </div>
         </div>
-        <template x-if="trendPoints(item.trafficHistory)">
-          <div class="flex items-center gap-2">
-            <svg viewBox="0 0 100 28" class="w-28 h-7 shrink-0"><polyline :points="trendPoints(item.trafficHistory)" fill="none" stroke="#4f46e5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <template x-if="trendDelta(item.trafficHistory)"><span class="text-[10px] font-medium" :class="trendDelta(item.trafficHistory).up ? 'text-emerald-600' : 'text-rose-500'" x-text="trendDelta(item.trafficHistory).txt"></span></template>
-            <span class="text-[10px] text-slate-400">热度趋势</span>
-          </div>
-        </template>
       </div>
     </template>
   </div>
@@ -328,14 +333,33 @@ function parseTraffic(s) {
   const mult = (u === 'w' || u === '万') ? 10000 : (u === 'k' || u === '千') ? 1000 : 1;
   return n * mult;
 }
-// 热度历史 → SVG 折线 points（取最近12个点）
-function trendPoints(hist) {
+// 热度历史 → 图表数据（取最近12个点，横轴为时间）
+function trendChart(hist) {
   const pts = (hist || []).filter(h => typeof h.v === 'number' && !isNaN(h.v)).slice(-12);
-  if (pts.length < 2) return '';
+  if (pts.length < 2) return null;
+  const W = 120, H = 40, P = 5;
   const vs = pts.map(h => h.v);
   const min = Math.min.apply(null, vs), max = Math.max.apply(null, vs);
   const span = (max - min) || 1;
-  return pts.map((h, i) => ((i / (pts.length - 1) * 96 + 2).toFixed(1)) + ',' + ((26 - (h.v - min) / span * 22).toFixed(1))).join(' ');
+  const X = i => (P + i / (pts.length - 1) * (W - 2 * P)).toFixed(1);
+  const Y = v => (P + (1 - (v - min) / span) * (H - 2 * P)).toFixed(1);
+  const line = pts.map((h, i) => X(i) + ',' + Y(h.v)).join(' ');
+  return {
+    line: line,
+    area: X(0) + ',' + H + ' ' + line + ' ' + X(pts.length - 1) + ',' + H,
+    dots: pts.map((h, i) => ({ x: X(i), y: Y(h.v) })),
+    first: pts[0], last: pts[pts.length - 1],
+    delta: trendDelta(pts) || { up: true, txt: '' }
+  };
+}
+// 图表数据 → SVG innerHTML（折线 + 面积 + 数据点）
+function trendSvg(hist) {
+  const c = trendChart(hist);
+  if (!c) return '';
+  const dots = c.dots.map(d => '<circle cx="' + d.x + '" cy="' + d.y + '" r="2" fill="#4f46e5"/>').join('');
+  return '<polygon points="' + c.area + '" fill="#4f46e5" opacity="0.08"/>'
+       + '<polyline points="' + c.line + '" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
+       + dots;
 }
 // 最新一次相对上一次的变化
 function trendDelta(hist) {
