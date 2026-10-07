@@ -116,7 +116,7 @@
 <div x-show="showBackupModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-30 p-4" x-cloak>
   <div class="bg-white w-full max-w-sm rounded-2xl p-5 space-y-3 shadow-xl max-h-[90vh] overflow-y-auto">
     <div class="flex justify-between items-center"><h3 class="font-bold text-base">备份与恢复</h3><button @click="showBackupModal = false" class="text-slate-400 text-sm">关闭</button></div>
-    <p class="text-xs text-slate-400">数据只存在这台设备的浏览器里。改版、换设备或清理缓存前，先导出备份。</p>
+    <p class="text-xs text-slate-400">备份文本可直接粘贴到备忘录保存。建议每月备份一次，换手机或清理数据前先备份。</p>
     <div class="grid grid-cols-2 gap-2">
       <button @click="exportFile()" class="bg-indigo-600 text-white py-2 rounded-xl text-sm font-medium">下载备份文件</button>
       <button @click="copyBackup()" class="bg-slate-100 text-slate-700 py-2 rounded-xl text-sm font-medium">复制备份文本</button>
@@ -227,7 +227,7 @@ function contentApp() {
     // ===== 备份与恢复 =====
     openBackup() { this.backupMsg=''; this.importText=''; this.showBackupModal=true; },
     backupString() {
-      return JSON.stringify({ app:'content-matrix', version:1, exportedAt:new Date().toISOString(), platforms:this.platforms, tools:this.tools, items:this.items }, null, 2);
+      return JSON.stringify({ app:'content-matrix', name:'创作矩阵', version:2, exportedAt:new Date().toISOString(), data:{ platforms:this.platforms, tools:this.tools, items:this.items } }, null, 2);
     },
     exportFile() {
       const blob = new Blob([this.backupString()], { type:'application/json' });
@@ -238,8 +238,8 @@ function contentApp() {
       this.msg('已生成备份文件（共 ' + this.items.length + ' 条内容）', true);
     },
     async copyBackup() {
-      try { await navigator.clipboard.writeText(this.backupString()); this.msg('已复制，可粘贴到备忘录保存', true); }
-      catch (e) { this.importText = this.backupString(); this.msg('无法自动复制，已填入下方文本框，请手动全选复制', false); }
+      try { await navigator.clipboard.writeText(this.backupString()); this.msg('已复制，去备忘录粘贴保存', true); }
+      catch (e) { this.importText = this.backupString(); this.msg('已填入下方文本框，长按全选复制', false); }
     },
     readFile(ev) {
       const f = ev.target.files[0]; if (!f) return;
@@ -250,11 +250,13 @@ function contentApp() {
     importData() {
       let d;
       try { d = JSON.parse(this.importText); } catch (e) { return this.msg('格式不对：请粘贴完整的备份文本', false); }
-      if (!d || !Array.isArray(d.items)) return this.msg('这不是有效的备份：缺少内容列表', false);
+      // 兼容旧版备份（无 data 包装）与新版备份（data:{platforms,tools,items}）
+      const src = (d && d.data && Array.isArray(d.data.items)) ? d.data : d;
+      if (!src || !Array.isArray(src.items)) return this.msg('这不是有效的备份：缺少内容列表', false);
       if (!confirm('将用备份覆盖当前 ' + this.items.length + ' 条内容，继续吗？')) return;
-      this.items = d.items;
-      if (Array.isArray(d.platforms)) this.platforms = d.platforms;
-      if (Array.isArray(d.tools)) this.tools = d.tools;
+      this.items = src.items;
+      if (Array.isArray(src.platforms)) this.platforms = src.platforms;
+      if (Array.isArray(src.tools)) this.tools = src.tools;
       save(KEYS.items, this.items); save(KEYS.platforms, this.platforms); save(KEYS.tools, this.tools);
       this.importText = ''; this.msg('已恢复 ' + this.items.length + ' 条内容', true);
     },
