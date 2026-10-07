@@ -61,9 +61,31 @@
           </div>
         </div>
         <h3 class="font-medium text-slate-900 text-sm" x-text="item.title"></h3>
-        <div class="flex flex-wrap gap-1">
-          <template x-for="plat in (item.platforms || [])"><span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full" x-text="plat"></span></template>
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md" x-text="formIcon(item.form) + ' ' + (item.form || '图文')"></span>
+          <template x-if="item.link"><a :href="item.link" target="_blank" rel="noopener" class="text-[10px] text-indigo-600 underline">🔗 原文链接</a></template>
         </div>
+        <div class="flex flex-wrap items-center gap-1.5">
+          <span class="text-[10px] text-slate-400">发布平台</span>
+          <template x-for="plat in (item.platforms || (item.platform ? [item.platform] : []))" :key="plat">
+            <span class="text-[10px] font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1"
+              :style="'background:' + platBrand(plat).bg + ';color:' + platBrand(plat).fg">
+              <span x-text="platBrand(plat).icon"></span><span x-text="plat"></span>
+            </span>
+          </template>
+        </div>
+        <template x-if="item.refPlatforms && item.refPlatforms.length">
+          <div class="flex flex-wrap items-center gap-1.5 bg-amber-50/60 border border-amber-100 rounded-xl px-2.5 py-1.5">
+            <span class="text-[10px] text-amber-700 font-medium">📌 参考</span>
+            <template x-for="plat in item.refPlatforms" :key="plat">
+              <span class="text-[10px] font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1"
+                :style="'background:' + platBrand(plat).bg + ';color:' + platBrand(plat).fg">
+                <span x-text="platBrand(plat).icon"></span><span x-text="plat"></span>
+              </span>
+            </template>
+            <template x-if="item.refNote"><span class="text-[10px] text-slate-500 w-full" x-text="'出处：' + item.refNote"></span></template>
+          </div>
+        </template>
         <template x-if="item.tools && item.tools.length > 0">
           <div class="flex flex-wrap gap-1 pt-1">
             <template x-for="t in item.tools"><span class="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md border border-indigo-100" x-text="'🛠️ ' + t"></span></template>
@@ -89,7 +111,10 @@
     </div>
     <div class="space-y-1.5 max-h-60 overflow-y-auto">
       <template x-for="(p, index) in platforms" :key="p">
-        <div class="flex justify-between items-center bg-slate-50 px-3 py-2 rounded-xl border border-slate-100 text-sm"><span x-text="p"></span><button @click="removePlatform(index)" class="text-slate-400 text-xs">删除</button></div>
+        <div class="flex justify-between items-center bg-slate-50 px-3 py-2 rounded-xl border border-slate-100 text-sm">
+          <span class="text-xs font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1" :style="'background:' + platBrand(p).bg + ';color:' + platBrand(p).fg"><span x-text="platBrand(p).icon"></span><span x-text="p"></span></span>
+          <button @click="removePlatform(index)" class="text-slate-400 text-xs">删除</button>
+        </div>
       </template>
     </div>
   </div>
@@ -140,7 +165,7 @@
         <input type="text" x-model="form.title" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="例如：独立开发者的副业复盘"></div>
       <div><label class="block text-xs font-medium text-slate-600 mb-1">目标平台 (可多选)</label>
         <div class="grid grid-cols-3 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-          <template x-for="p in platforms"><label class="flex items-center gap-1.5 text-xs cursor-pointer"><input type="checkbox" :value="p" x-model="form.platforms" class="rounded"><span x-text="p"></span></label></template>
+          <template x-for="p in platforms"><label class="flex items-center gap-1.5 text-xs cursor-pointer"><input type="checkbox" :value="p" x-model="form.platforms" class="rounded"><span x-text="platBrand(p).icon + ' ' + p"></span></label></template>
         </div></div>
       <div><label class="block text-xs font-medium text-slate-600 mb-1">使用/打造的工具 (可多选)</label>
         <div class="grid grid-cols-2 gap-2 bg-indigo-50/40 p-2.5 rounded-xl border border-indigo-100">
@@ -158,7 +183,7 @@
         <div class="space-y-2 bg-amber-50/50 p-3 rounded-xl border border-amber-200">
           <label class="block text-xs font-medium text-amber-800">参考平台 (可多选)</label>
           <div class="grid grid-cols-3 gap-2">
-            <template x-for="p in platforms"><label class="flex items-center gap-1.5 text-xs cursor-pointer"><input type="checkbox" :value="p" x-model="form.refPlatforms" class="rounded"><span x-text="p"></span></label></template>
+            <template x-for="p in platforms"><label class="flex items-center gap-1.5 text-xs cursor-pointer"><input type="checkbox" :value="p" x-model="form.refPlatforms" class="rounded"><span x-text="platBrand(p).icon + ' ' + p"></span></label></template>
           </div>
           <label class="block text-xs font-medium text-amber-800 mt-2 mb-1">参考来源链接/出处说明</label>
           <input type="text" x-model="form.refNote" class="w-full bg-white border border-amber-200 rounded-xl px-3 py-2 text-sm" placeholder="例如：某博主爆款选题 / 原文链接">
@@ -178,7 +203,36 @@
 <script>
 // 存储 key 请保持不变，改了就读不到旧数据
 const KEYS = { platforms: 'content_platforms', tools: 'content_tools', items: 'content_items_v3' };
-const DEFAULT_PLATFORMS = ["小红书","YouTube","即刻","Twitter/X","视频号","公众号"];
+const DEFAULT_PLATFORMS = ["抖音","小红书","视频号","公众号","B站","YouTube","微博","知乎","即刻","Twitter/X"];
+
+// 平台品牌样式：卡片上按各平台官方风格（品牌色 + 图标）展示
+const PLATFORM_BRANDS = {
+  '抖音':    { icon:'🎵', fg:'#ffffff', bg:'#161823' },
+  '小红书':  { icon:'📕', fg:'#ffffff', bg:'#ff2442' },
+  '视频号':  { icon:'📹', fg:'#ffffff', bg:'#07c160' },
+  '公众号':  { icon:'💬', fg:'#ffffff', bg:'#07c160' },
+  'B站':     { icon:'📺', fg:'#ffffff', bg:'#fb7299' },
+  '哔哩哔哩': { icon:'📺', fg:'#ffffff', bg:'#fb7299' },
+  'bilibili':{ icon:'📺', fg:'#ffffff', bg:'#fb7299' },
+  'YouTube': { icon:'▶️', fg:'#ffffff', bg:'#ff0000' },
+  'youtube': { icon:'▶️', fg:'#ffffff', bg:'#ff0000' },
+  '微博':    { icon:'🔥', fg:'#ffffff', bg:'#e6162d' },
+  '知乎':    { icon:'💡', fg:'#ffffff', bg:'#0066ff' },
+  '快手':    { icon:'⚡', fg:'#ffffff', bg:'#ff6a00' },
+  '即刻':    { icon:'💛', fg:'#3a2e00', bg:'#ffe411' },
+  'Twitter/X':{ icon:'✖️', fg:'#ffffff', bg:'#000000' },
+  'X':       { icon:'✖️', fg:'#ffffff', bg:'#000000' },
+  'twitter': { icon:'✖️', fg:'#ffffff', bg:'#000000' },
+  '今日头条': { icon:'📰', fg:'#ffffff', bg:'#f04142' },
+  '头条':    { icon:'📰', fg:'#ffffff', bg:'#f04142' },
+  '百家号':  { icon:'ⓑ', fg:'#ffffff', bg:'#2932e1' },
+};
+const FORM_ICONS = { '图文':'📝', '短视频':'🎬', '长视频':'🎥', '纯文字':'✍️' };
+function platBrand(name) {
+  const k = String(name || '').trim();
+  return PLATFORM_BRANDS[k] || PLATFORM_BRANDS[k.toLowerCase()] || { icon:'🌐', fg:'#475569', bg:'#eef2f7' };
+}
+function formIcon(f) { return FORM_ICONS[f] || '📄'; }
 const DEFAULT_TOOLS = ["视频提取音频","文字生成图片","音频转文字","文字转音频"];
 
 function load(key, fallback) {
