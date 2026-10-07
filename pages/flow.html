@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>流量记录与趋势图</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; padding: 16px; max-width: 900px; margin: auto; }
+    h1 { margin-bottom: 8px; }
+    .controls { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; align-items:center; }
+    input[type="number"] { width:160px; padding:6px; }
+    input[type="datetime-local"] { padding:6px; }
+    button { padding:6px 10px; }
+    #list { margin-top:12px; max-height:220px; overflow:auto; border:1px solid #eee; padding:8px; background:#fafafa; }
+    table { width:100%; border-collapse:collapse; }
+    td,th { padding:6px 8px; border-bottom:1px solid #eee; text-align:left; font-size:14px; }
+    .small { font-size:13px; color:#666; }
+    canvas { background: #fff; border:1px solid #eee; }
+  </style>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- date-fns adapter for chartjs time scale -->
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+</head>
+<body>
+  <h1>流量记录与趋势图</h1>
+
+  <div class="controls">
+    <label>流量数：
+      <input id="valueInput" type="number" step="any" placeholder="例如 123.45" />
+    </label>
+    <label>时间（可选）：
+      <input id="timeInput" type="datetime-local" />
+    </label>
+    <button id="addNowBtn">记录（现在）</button>
+    <button id="addBtn">记录（指定时间/值）</button>
+    <button id="exportCsvBtn">导出 CSV</button>
+    <button id="clearBtn" style="color:#b00">清除全部</button>
+  </div>
+
+  <canvas id="chart" height="160"></canvas>
+
+  <div id="list">
+    <div class="small">最近记录（时间由新到旧）</div>
+    <table id="table">
+      <thead><tr><th>时间</th><th>流量</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+<script>
+(() => {
+  const STORAGE_KEY = 'flowData_v1'; // 如需兼容可改 key
+  const ctx = document.getElementById('chart').getContext('2d');
+
+  // 默认空数据
+  let data = loadData();
+
+  // Chart 实例，使用 line + time scale
+  const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      datasets: [{
+        label: '流量',
+        data: data.map(d => ({ x: d.t, y: d.v })),
+        borderColor: '#1f77b4',
+        backgroundColor: 'rgba(31,119,180,0.08)',
+        pointRadius: 3,
+        pointHoverRadius: 6,
+        tension: 0.15,
+        spanGaps: true,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          type: 'time',
+          time: {
+            tooltipFormat: "yyyy-MM-dd HH:mm",
+            // unit 会在 updateScale() 中动态设置
+          },
+          title: { display: true, text: '时间' },
+          ticks: {
+            maxRotation: 0,
+            autoSkip: true,
+            source: 'auto',
+          }
+        },
+        y: {
+          beginAtZero: false,
+          title: { display: true, text: '流量' },
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              return ` ${ctx.parsed.y}`;
+            }
+          }
+        }
+      },
+      animation: false
+    }
+  });
+
+  // DOM
+  const valueInput = document.getElementById('valueInput');
+  const timeInput = document.getElementById('timeInput');
+  const addNowBtn = document.getElementById('addNowBtn');
+  const addBtn = document.getElementById('addBtn');
+  const exportCsvBtn = document.getElementById('exportCsvBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const tableBody = document.querySelector('#table tbody');
+
+  function loadData() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      // normalize timestamps to ISO strings
+      return parsed.map(r => ({ t: new Date(r.t).toISOString(), v: Number(r.v) })).sort((a,b)=> new Date(b.t)-new Date(a.t));
+    } catch (e) {
+      console.error('loadData error', e);
+      return [];
+    }
+  }
+
+  function saveData() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  function addEntry(value, dateObj=new Date()) {
+    if (value === '' || value === null || isNaN(Number(value))) {
+      alert('请输入有效的流量数');
+      return;
+    }
+    const iso = (new Date(dateObj)).toISOString();
+    // 插入并保持按时间降序
+    data.push({ t: iso, v: Number(value) });
+    data.sort((a,b)=> new Date(b.t) - new Date(a.t));
+    saveData();
+    renderTable();
+    updateChart();
+  }
+
+  function clearAll() {
+    if (!confirm('确定要清除全部记录吗？')) return;
+    data = [];
+    saveData();
+    renderTable();
+    updateChart();
+  }
+
+  addNowBtn.addEventListener('click', () => {
+    const v = valueInput.value;
+    addEntry(v, new Date());
+  });
+
+  addBtn.addEventListener('click', () => {
+    const v = valueInput.value;
+    const t = timeInput.value;
+    if (t) {
+      // t is like "2026-10-07T12:34"
+      const dt = new Date(t);
+      addEntry(v, dt);
+    } else {
+      addEntry(v, new Date());
+    }
+  });
+
+  exportCsvBtn.addEventListener('click', () => {
+    if (data.length === 0) { alert('无数据可导出'); return; }
+    const rows = [['timestamp','value'], ...data.slice().reverse().map(r => [r.t, r.v])]; // 升序导出
+    const csv = rows.map(r => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'flow_data.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  clearBtn.addEventListener('click', clearAll);
+
+  function renderTable() {
+    tableBody.innerHTML = '';
+    if (data.length === 0) {
+      const tr = document.createElement('tr');
+      const td = document.createElement('td');
+      td.colSpan = 2;
+      td.className = 'small';
+      td.textContent = '暂无记录';
+      tr.appendChild(td);
+      tableBody.appendChild(tr);
+      return;
+    }
+    // 显示最近 200 条以防卡顿
+    const shown = data.slice(0, 200);
+    shown.forEach(row => {
+      const tr = document.createElement('tr');
+      const td1 = document.createElement('td');
+      const d = new Date(row.t);
+      td1.textContent = d.toLocaleString();
+      const td2 = document.createElement('td');
+      td2.textContent = row.v;
+      tr.appendChild(td1);
+      tr.appendChild(td2);
+      tableBody.appendChild(tr);
+    });
+  }
+
+  // 根据时间跨度设置 x 轴显示单位
+  function chooseTimeUnit(minTs, maxTs) {
+    const ms = maxTs - minTs;
+    const minute = 60*1000;
+    const hour = 60*minute;
+    const day = 24*hour;
+    const month = 30*day;
+    const year = 365*day;
+
+    if (ms <= 2*hour) return { unit:'minute', step: Math.max(1, Math.round(ms/(10*minute))) };
+    if (ms <= 2*day) return { unit:'hour', step: Math.max(1, Math.round(ms/(12*hour))) };
+    if (ms <= 45*day) return { unit:'day', step: Math.max(1, Math.round(ms/(14*day))) };
+    if (ms <= 2*year) return { unit:'month', step: Math.max(1, Math.round(ms/(12*month))) };
+    return { unit:'year', step: Math.max(1, Math.round(ms/(10*year))) };
+  }
+
+  function updateChart() {
+    const pts = data.slice().map(d => ({ x: d.t, y: d.v }));
+    chart.data.datasets[0].data = pts.reverse(); // Chart expects ascending x
+    if (pts.length >= 2) {
+      const times = pts.map(p => new Date(p.x).getTime());
+      const minTs = Math.min(...times);
+      const maxTs = Math.max(...times);
+      const tu = chooseTimeUnit(minTs, maxTs);
+      chart.options.scales.x.time.unit = tu.unit;
+      chart.options.scales.x.time.stepSize = tu.step;
+      // 根据跨度调整 tick 颜色/size（可选）
+    } else {
+      // 单点或空数据，使用 minute 显示
+      chart.options.scales.x.time.unit = 'minute';
+      chart.options.scales.x.time.stepSize = 1;
+    }
+    chart.update();
+  }
+
+  // 初始渲染
+  renderTable();
+  updateChart();
+
+  // 如果需要：暴露导入函数以便从后端或文件载入数据（格式：[{t:ISO,v:number}, ...]）
+  window.importFlowData = function(arr, replace=false) {
+    if (!Array.isArray(arr)) return;
+    const normalized = arr.map(r => ({ t: new Date(r.t).toISOString(), v: Number(r.v) }));
+    if (replace) {
+      data = normalized.slice().sort((a,b)=> new Date(b.t)-new Date(a.t));
+    } else {
+      data = data.concat(normalized).sort((a,b)=> new Date(b.t) - new Date(a.t));
+      // 去重（相同 ISO 时间保留最后一个）
+      const map = new Map();
+      data.slice().reverse().forEach(item => map.set(item.t, item)); // 保证时间升序覆盖
+      data = Array.from(map.values()).reverse();
+    }
+    saveData();
+    renderTable();
+    updateChart();
+  };
+
+})();
+</script>
+</body>
+</html>
